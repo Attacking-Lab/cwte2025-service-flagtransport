@@ -1,0 +1,10 @@
+FROM debian:trixie
+
+RUN apt update && apt upgrade && apt install -y gnucobol socat
+
+WORKDIR /opt
+RUN mkdir data logs && chown nobody:nogroup data logs
+RUN --mount=source=src,target=src cobc -x -w src/gateway.cob
+
+USER nobody
+ENTRYPOINT ["socat", "UDP-LISTEN:6256,fork,reuseaddr,cool-write", "EXEC:/opt/gateway"]

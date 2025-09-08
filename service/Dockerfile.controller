@@ -1,0 +1,10 @@
+FROM debian:trixie
+
+RUN apt update && apt upgrade && apt install -y gnucobol socat
+
+WORKDIR /opt
+RUN mkdir data logs && chown nobody:nogroup data logs
+RUN --mount=source=src,target=src cobc -x -w src/controller.cob
+
+USER nobody
+ENTRYPOINT ["socat", "TCP-LISTEN:6256,fork,reuseaddr,cool-write,keepalive,keepcnt=1,keepidle=3,keepintvl=3", "EXEC:/opt/controller"]

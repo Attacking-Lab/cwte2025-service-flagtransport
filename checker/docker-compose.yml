@@ -1,0 +1,25 @@
+services:
+  checker:
+    container_name: flagtransport-checker
+    build: .
+    ports:
+      - 1337:1337
+    environment:
+      - MONGO_ENABLED=1
+      - MONGO_HOST=mongo
+      - MONGO_USER=mongo
+      - MONGO_PASSWORD=mongo
+  mongo:
+    container_name: flagtransport-mongo
+    image: mongo
+    volumes:
+      - data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongo
+      MONGO_INITDB_ROOT_PASSWORD: mongo
+networks:
+  default:
+    name: flagtransport-checker
+volumes:
+  data:
+    name: flagtransport-chaindb

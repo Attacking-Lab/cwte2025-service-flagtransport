@@ -1,0 +1,23 @@
+services:
+  controller:
+    build:
+      dockerfile: Dockerfile.controller
+    ports:
+      - 6256:6256
+    volumes:
+      - data:/opt/data
+      - logs:/opt/logs
+  gateway:
+    build:
+      dockerfile: Dockerfile.gateway
+    ports:
+      - 6256:6256/udp
+    volumes:
+      - data:/opt/data
+      - logs:/opt/logs
+networks:
+  default:
+    name: flagtransport
+volumes:
+  data:
+  logs:

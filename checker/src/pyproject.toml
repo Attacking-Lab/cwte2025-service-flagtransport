@@ -1,0 +1,19 @@
+[project]
+name = "checker"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4>=4.13.3",
+    "enochecker-core",
+    "enochecker3",
+    "gmpy2>=2.2.1",
+    "gunicorn>=23.0.0",
+    "pycryptodome>=3.22.0",
+    "python-dateutil>=2.9.0.post0",
+    "typeguard>=4.4.4",
+]
+
+[tool.uv.sources]
+enochecker3 = { git = "https://github.com/attacking-lab/enochecker3", rev = "v0.11.2" }
+enochecker-core = { git = "https://github.com/attacking-lab/enochecker-core", rev = "v0.11.2" }
