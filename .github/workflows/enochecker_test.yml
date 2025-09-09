@@ -4,59 +4,75 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - master
+      - main
   pull_request:
     branches:
-      - master
+      - main
 
 jobs:
   build:
-    runs-on: arc-runner-dink
+    runs-on: dink-external
     env:
-      ENOCHECKER_TEST_CHECKER_PORT: 1813
+      ENOCHECKER_CHECKER_PORT: 1337
     steps:
+    - uses: attacking-lab/actions/.github/actions/github-credentials-store@main
+      with:
+        password: ${{ secrets.CI_PAT }}
+
     - uses: actions/checkout@v2
       with:
         submodules: recursive
+
     - name: Set up Python 3.13
       uses: actions/setup-python@v2
       with:
         python-version: 3.13
+
     - name: Install enochecker_test
       run: |
         python -m pip install --upgrade pip
-        pip install enochecker_test
+        pip install git+https://github.com/attacking-lab/enochecker-core@v0.11.2
+        pip install git+https://github.com/attacking-lab/enochecker-test@v0.11.1
+
     - name: start service
       run: |
         cd service
         docker compose up --build --force-recreate -d
+
     - name: start checker
       run: |
         cd checker
         docker compose up --build --force-recreate -d
+
     - name: obtain Docker host IP
       run: |
-        echo "ENOCHECKER_TEST_SERVICE_ADDRESS=$(docker network inspect flagtransport | jq -r '.[].IPAM.Config[].Gateway')" | tee -a $GITHUB_ENV
-        echo "ENOCHECKER_TEST_CHECKER_ADDRESS=$(docker network inspect flagtransport-checker | jq -r '.[].IPAM.Config[].Gateway')" | tee -a $GITHUB_ENV
+        echo "ENOCHECKER_SERVICE_ADDRESS=$(docker network inspect flagtransport | jq -r '.[].IPAM.Config[].Gateway')" | tee -a $GITHUB_ENV
+        echo "ENOCHECKER_CHECKER_ADDRESS=$(docker network inspect flagtransport-checker | jq -r '.[].IPAM.Config[].Gateway')" | tee -a $GITHUB_ENV
+
     - name: run enochecker_test
       run: |
         enochecker_test
+
     - name: Dump docker logs on failure
       if: failure()
       uses: jwalton/gh-docker-logs@v1
       with:
         dest: './logs'
+
     - name: Tar logs
       if: failure()
       run: tar cvzf ./logs.tgz ./logs
+
     - name: Upload logs to GitHub
       if: failure()
       uses: actions/upload-artifact@master
       with:
         name: logs.tgz
         path: ./logs.tgz
+
     - name: Kill docker containers
       if: failure() || success()
       run: |
         (cd service && docker compose down -v)
         (cd checker && docker compose down -v)
+
