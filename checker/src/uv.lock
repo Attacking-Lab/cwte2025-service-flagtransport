@@ -65,8 +65,8 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.13.3" },
-    { name = "enochecker-core", git = "https://github.com/attacking-lab/enochecker-core?rev=v0.11.2" },
-    { name = "enochecker3", git = "https://github.com/attacking-lab/enochecker3?rev=v0.11.2" },
+    { name = "enochecker-core", git = "https://github.com/attacking-lab/enochecker-core?rev=v0.11.3" },
+    { name = "enochecker3", git = "https://github.com/attacking-lab/enochecker3?rev=v0.11.3" },
     { name = "gmpy2", specifier = ">=2.2.1" },
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "pycryptodome", specifier = ">=3.22.0" },
@@ -106,16 +106,16 @@ wheels = [
 
 [[package]]
 name = "enochecker-core"
-version = "0.11.0"
-source = { git = "https://github.com/attacking-lab/enochecker-core?rev=v0.11.2#25d238542128ae462b321cf4860da9b75a9f98c6" }
+version = "0.11.3"
+source = { git = "https://github.com/attacking-lab/enochecker-core?rev=v0.11.3#c159ae677afa837e8f57ad9f7751c8e79f45cd7f" }
 dependencies = [
     { name = "pydantic" },
 ]
 
 [[package]]
 name = "enochecker3"
-version = "0.11.2"
-source = { git = "https://github.com/attacking-lab/enochecker3?rev=v0.11.2#a9b976be82db342cff4b0508c814ce9935cf92df" }
+version = "0.11.3"
+source = { git = "https://github.com/attacking-lab/enochecker3?rev=v0.11.3#465a6514e0f51e47431d1c021b5ad8b632366bff" }
 dependencies = [
     { name = "fastapi" },
     { name = "gunicorn" },
