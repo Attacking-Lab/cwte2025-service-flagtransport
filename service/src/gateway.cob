@@ -1,162 +1,163 @@
-                           IDENTIFICATION DIVISION.
-       PROGRAM-ID. FlagTransport-Gateway.
-
-                           ENVIRONMENT DIVISION.
-       CONFIGURATION SECTION.
-       SPECIAL-NAMES.
-
-       INPUT-OUTPUT SECTION.
-       FILE-CONTROL.
-           SELECT User-Input ASSIGN TO KEYBOARD
-           ORGANIZATION LINE SEQUENTIAL.
-           SELECT OPTIONAL Vehichles ASSIGN TO "data/vehichles.dat"
-           ORGANIZATION INDEXED
-           ACCESS DYNAMIC
-           RECORD KEY VE-Number.
-           SELECT OPTIONAL Cargoes ASSIGN TO "data/cargoes.dat"
-           ORGANIZATION INDEXED
-           ACCESS DYNAMIC
-           RECORD KEY CA-ID
-           ALTERNATE RECORD KEY CA-Warehouse WITH DUPLICATES
-           ALTERNATE RECORD KEY CA-Vehichle WITH DUPLICATES.
-
-                           DATA DIVISION.
-       FILE SECTION.
-       FD User-Input.
-       01 User-Input-Line PIC X(500).
-       FD Vehichles.
-       01 Vehichle.
-           05 VE-Number PIC 9(15).
-               88 VE-Number-Invalid VALUE ZERO.
-           05 VE-Password PIC X(50).
-           05 Location.
-               10 X PIC 9(8).
-               10 Y PIC 9(8).
-       FD Cargoes.
-       01 Cargo.
-           05 CA-ID PIC X(30).
-               88 CA-ID-Invalid VALUE SPACES.
-           05 Origin PIC X(50).
-           05 Dest PIC X(50).
-           05 Note PIC X(100).
-           05 Stored-State PIC 9.
-               88 Stored VALUE 0.
-               88 Loaded VALUE 1.
-           05 CA-Warehouse PIC X(50).
-           05 CA-Vehichle PIC 9(15).
-       WORKING-STORAGE SECTION.
-       01 Gateway-Key-Index USAGE INDEX.
-       01 Gateway-Key-Temp PIC 9(20).
-       01 Gateway-Key PIC X(50).
-       01 Sent-Gateway-Key PIC X(50).
-           88 Unauthenticated VALUE SPACES.
-       01 Sent-VE-Number PIC 9(15).
-           88 Sent-VE-Number-Invalid VALUE ZERO.
-       01 Verb PIC X.
-           88 Update-Location VALUE "L".
-           88 Retrieve-Status VALUE "S".
-       01 Sent-Location.
-           05 X PIC 9(8).
-           05 Y PIC 9(8).
-
-                           PROCEDURE DIVISION.
-           SET VE-Number-Invalid TO TRUE
-           SET CA-ID-Invalid TO TRUE
-           OPEN INPUT User-Input
-           PERFORM HANDLE-REQUEST.
-       HANDLE-REQUEST.
-           READ User-Input END EXIT PARAGRAPH END-READ
-           UNSTRING User-Input-Line
-               DELIMITED BY ":" INTO
-               Sent-VE-Number
-               Sent-Gateway-Key
-               Verb
-               X OF Sent-Location Y OF Sent-Location
-           END-UNSTRING
-           IF Sent-VE-Number-Invalid
-               PERFORM SEND-ERROR
-               EXIT PARAGRAPH
-           END-IF
-           ADD Sent-VE-Number TO VE-Number
-           PERFORM LOAD-VEHICHLE
-           IF VE-Number-Invalid
-               PERFORM SEND-ERROR
-               EXIT PARAGRAPH
-           END-IF
-           PERFORM COMPUTE-GATEWAY-KEY
-           IF Sent-Gateway-Key IS NOT EQUAL Gateway-Key
-               AND NOT Unauthenticated
-               PERFORM SEND-ERROR
-               EXIT PARAGRAPH
-           END-IF
-           EVALUATE TRUE
-           WHEN Update-Location
-               IF Unauthenticated
-                   PERFORM SEND-ERROR
-                   EXIT PARAGRAPH
-               END-IF
-               MOVE Sent-Location TO Location OF Vehichle
-               PERFORM UPDATE-VEHICHLE
-               PERFORM SEND-OK
-           WHEN Retrieve-Status
-               DISPLAY ":LOC:" X OF Vehichle ":" Y OF Vehichle ":"
-               MOVE Sent-VE-Number TO CA-Vehichle
-               OPEN I-O Cargoes
-               START Cargoes KEY IS EQUAL CA-Vehichle
-                   INVALID CONTINUE
-                   NOT INVALID PERFORM FOREVER
-                   READ Cargoes AT END EXIT PERFORM END-READ
-                   IF Sent-VE-Number IS NOT EQUAL CA-Vehichle
-                       EXIT PERFORM
-                   END-IF
-                   IF NOT Loaded EXIT PERFORM CYCLE END-IF
-                   IF Unauthenticated
-                       DISPLAY
-                           ":CAR:" FUNCTION TRIM(CA-ID)
-                           ":" FUNCTION TRIM(Dest)
-                           ":"
-                           ":"
-                   ELSE
-                       DISPLAY
-                           ":CAR:" FUNCTION TRIM(CA-ID)
-                           ":" FUNCTION TRIM(Dest)
-                           ":" FUNCTION TRIM(Note OF Cargo)
-                           ":"
-                   END-IF
-                   END-PERFORM
-               END-START
-               CLOSE Cargoes
-               PERFORM SEND-OK
-           WHEN OTHER
-               PERFORM SEND-ERROR
-           END-EVALUATE
-           PERFORM FINISH-REQUEST.
-       SEND-ERROR.
-           DISPLAY ":ERR:".
-       SEND-OK.
-           DISPLAY ":OK:".
-       FINISH-REQUEST.
-           DISPLAY ":END:"
-           STOP RUN.
-       LOAD-VEHICHLE.
-           OPEN I-O Vehichles
-           READ Vehichles
-               INVALID SET VE-Number-Invalid TO TRUE
-           END-READ
-           CLOSE Vehichles.
-       UPDATE-VEHICHLE.
-           OPEN I-O Vehichles
-           REWRITE Vehichle
-           CLOSE Vehichles.
-       COMPUTE-GATEWAY-KEY.
-           PERFORM LOAD-VEHICHLE.
-           PERFORM VARYING Gateway-Key-Index FROM 1 BY 1
-               UNTIL Gateway-Key-Index > 50
-               COMPUTE Gateway-Key-Temp =
-                   26 * FUNCTION ORD(VE-Password(Gateway-Key-Index:1))
-                   + Gateway-Key-Index * VE-Number
-                   + VE-Number / Gateway-Key-Index
-               MOVE FUNCTION CHAR(
-                   66 + FUNCTION MOD(Gateway-Key-Temp, 26)
-               ) TO Gateway-Key(Gateway-Key-Index:1)
-           END-PERFORM.
+000000                     IDENTIFICATION DIVISION.
+000010 PROGRAM-ID. FlagTransport-Gateway.
+000020
+000030                     ENVIRONMENT DIVISION.
+000040 CONFIGURATION SECTION.
+000050 SPECIAL-NAMES.
+000060
+000070 INPUT-OUTPUT SECTION.
+000080 FILE-CONTROL.
+000090     SELECT User-Input ASSIGN TO KEYBOARD
+000100     ORGANIZATION LINE SEQUENTIAL.
+000110     SELECT OPTIONAL Vehichles ASSIGN TO "data/vehichles.dat"
+000120     ORGANIZATION INDEXED
+000130     ACCESS DYNAMIC
+000140     RECORD KEY VE-Number.
+000150     SELECT OPTIONAL Cargoes ASSIGN TO "data/cargoes.dat"
+000160     ORGANIZATION INDEXED
+000170     ACCESS DYNAMIC
+000180     RECORD KEY CA-ID
+000190     ALTERNATE RECORD KEY CA-Warehouse WITH DUPLICATES
+000200     ALTERNATE RECORD KEY CA-Vehichle WITH DUPLICATES.
+000210
+000220                     DATA DIVISION.
+000230 FILE SECTION.
+000240 FD User-Input.
+000250 01 User-Input-Line PIC X(500).
+000260 FD Vehichles.
+000270 01 Vehichle.
+000280     05 VE-Number PIC 9(15).
+000290         88 VE-Number-Invalid VALUE ZERO.
+000300     05 VE-Password PIC X(50).
+000310     05 Location.
+000320         10 X PIC 9(8).
+000330         10 Y PIC 9(8).
+000340 FD Cargoes.
+000350 01 Cargo.
+000360     05 CA-ID PIC X(30).
+000370         88 CA-ID-Invalid VALUE SPACES.
+000380     05 Origin PIC X(50).
+000390     05 Dest PIC X(50).
+000400     05 Note PIC X(100).
+000410     05 Stored-State PIC 9.
+000420         88 Stored VALUE 0.
+000430         88 Loaded VALUE 1.
+000440     05 CA-Warehouse PIC X(50).
+000450     05 CA-Vehichle PIC 9(15).
+000460 WORKING-STORAGE SECTION.
+000470 01 Gateway-Key-Index USAGE INDEX.
+000480 01 Gateway-Key-Temp PIC 9(20).
+000490 01 Gateway-Key PIC X(50).
+000500 01 Sent-Gateway-Key PIC X(50).
+000510     88 Unauthenticated VALUE SPACES.
+000520 01 Sent-VE-Number PIC 9(15).
+000530     88 Sent-VE-Number-Invalid VALUE ZERO.
+000540 01 Verb PIC X.
+000550     88 Update-Location VALUE "L".
+000560     88 Retrieve-Status VALUE "S".
+000570 01 Sent-Location.
+000580     05 X PIC 9(8).
+000590     05 Y PIC 9(8).
+000600
+000610                     PROCEDURE DIVISION.
+000620     SET VE-Number-Invalid TO TRUE
+000630     SET CA-ID-Invalid TO TRUE
+000640     OPEN INPUT User-Input
+000650     PERFORM HANDLE-REQUEST.
+000660 HANDLE-REQUEST.
+000670     READ User-Input END EXIT PARAGRAPH END-READ
+000680     UNSTRING User-Input-Line
+000690         DELIMITED BY ":" INTO
+000700         Sent-VE-Number
+000710         Sent-Gateway-Key
+000720         Verb
+000730         X OF Sent-Location Y OF Sent-Location
+000740     END-UNSTRING
+000750     IF Sent-VE-Number-Invalid
+000760         PERFORM SEND-ERROR
+000770         EXIT PARAGRAPH
+000780     END-IF
+000790     ADD Sent-VE-Number TO VE-Number
+000800     PERFORM LOAD-VEHICHLE
+000810     IF VE-Number-Invalid
+000820         PERFORM SEND-ERROR
+000830         EXIT PARAGRAPH
+000840     END-IF
+000850     PERFORM COMPUTE-GATEWAY-KEY
+000860     IF Sent-Gateway-Key IS NOT EQUAL Gateway-Key
+000870         AND NOT Unauthenticated
+000880         PERFORM SEND-ERROR
+000890         EXIT PARAGRAPH
+000900     END-IF
+000910     EVALUATE TRUE
+000920     WHEN Update-Location
+000930         IF Unauthenticated
+000940             PERFORM SEND-ERROR
+000950             EXIT PARAGRAPH
+000960         END-IF
+000970         MOVE Sent-Location TO Location OF Vehichle
+000980         PERFORM UPDATE-VEHICHLE
+000990         PERFORM SEND-OK
+001000     WHEN Retrieve-Status
+001010         DISPLAY ":LOC:" X OF Vehichle ":" Y OF Vehichle ":"
+001020         MOVE Sent-VE-Number TO CA-Vehichle
+001030         OPEN I-O Cargoes
+001040         START Cargoes KEY IS EQUAL CA-Vehichle
+001050             INVALID CONTINUE
+001060             NOT INVALID PERFORM FOREVER
+001070             READ Cargoes AT END EXIT PERFORM END-READ
+001080             IF Sent-VE-Number IS NOT EQUAL CA-Vehichle
+001090                 EXIT PERFORM
+001100             END-IF
+001110             IF NOT Loaded EXIT PERFORM CYCLE END-IF
+001120             IF Unauthenticated
+001130                 DISPLAY
+001140                     ":CAR:" FUNCTION TRIM(CA-ID)
+001150                     ":" FUNCTION TRIM(Dest)
+001160                     ":"
+001170                     ":"
+001180             ELSE
+001190                 DISPLAY
+001200                     ":CAR:" FUNCTION TRIM(CA-ID)
+001210                     ":" FUNCTION TRIM(Dest)
+001220                     ":" FUNCTION TRIM(Note OF Cargo)
+001230                     ":"
+001240             END-IF
+001250             END-PERFORM
+001260         END-START
+001270         CLOSE Cargoes
+001280         PERFORM SEND-OK
+001290     WHEN OTHER
+001300         PERFORM SEND-ERROR
+001310     END-EVALUATE
+001320     PERFORM FINISH-REQUEST.
+001330 SEND-ERROR.
+001340     DISPLAY ":ERR:".
+001350 SEND-OK.
+001360     DISPLAY ":OK:".
+001370 FINISH-REQUEST.
+001380     DISPLAY ":END:"
+001390     STOP RUN.
+001400 LOAD-VEHICHLE.
+001410     OPEN I-O Vehichles
+001420     READ Vehichles
+001430         INVALID SET VE-Number-Invalid TO TRUE
+001440     END-READ
+001450     CLOSE Vehichles.
+001460 UPDATE-VEHICHLE.
+001470     OPEN I-O Vehichles
+001480     REWRITE Vehichle
+001490     CLOSE Vehichles.
+001500 COMPUTE-GATEWAY-KEY.
+001510     PERFORM LOAD-VEHICHLE.
+001520     PERFORM VARYING Gateway-Key-Index FROM 1 BY 1
+001530         UNTIL Gateway-Key-Index > 50
+001540         COMPUTE Gateway-Key-Temp =
+001550             26 * FUNCTION ORD(VE-Password(Gateway-Key-Index:1))
+001560             + Gateway-Key-Index * VE-Number
+001570             + VE-Number / Gateway-Key-Index
+001580         MOVE FUNCTION CHAR(
+001590             66 + FUNCTION MOD(Gateway-Key-Temp, 26)
+001600         ) TO Gateway-Key(Gateway-Key-Index:1)
+001610     END-PERFORM.
+001620
