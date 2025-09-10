@@ -1,6 +1,6 @@
 FROM debian:trixie
 
-RUN apt update && apt upgrade && apt install -y gnucobol socat
+RUN apt update && apt upgrade -y && apt install -y gnucobol socat
 
 WORKDIR /opt
 RUN mkdir data logs && chown nobody:nogroup data logs
