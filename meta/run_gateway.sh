@@ -6,4 +6,4 @@
 # -Wno-terminator => No warnings about not using END-* verbs
 # -Wno-possible-truncate => No warning about vulnerability (ignored code at end of the line)
 # -Wno-additional => No warning about implicit size for filler values
-cobc -xj -Wall -Wextra -Wno-terminator -Wno-possible-truncate -Wno-additional service/src/gateway.cob
+cobc -xj -Wall -Wextra -Wno-terminator -Wno-possible-truncate -Wno-additional "$(dirname "$0")/../service/src/gateway.cob"

@@ -12,8 +12,7 @@
            SELECT OPTIONAL Warehouses ASSIGN TO "data/warehouses.dat"
            ORGANIZATION INDEXED
            ACCESS DYNAMIC
-           RECORD KEY WA-Name
-           ALTERNATE RECORD KEY Location OF Warehouse WITH DUPLICATES.
+           RECORD KEY WA-Name.
            SELECT OPTIONAL Vehichles ASSIGN TO "data/vehichles.dat"
            ORGANIZATION INDEXED
            ACCESS DYNAMIC
@@ -208,11 +207,10 @@
                IF CA-Warehouse IS NOT EQUAL WS-WA-Name
                    EXIT PERFORM
                END-IF
+               IF Loaded OF Cargo EXIT PERFORM CYCLE END-IF
                DISPLAY
-                   "*>> Cargo "
-                   FUNCTION TRIM(CA-ID)
-                   ": "
-                   FUNCTION TRIM(Note OF Cargo)
+                   "*>> Cargo " FUNCTION TRIM(CA-ID)
+                   ": " FUNCTION TRIM(Note OF Cargo)
                END-PERFORM
            END-START
            DISPLAY "/>> Cargo list end"
@@ -273,8 +271,7 @@
            END-IF
            PERFORM ASK-CARGO-ID
            PERFORM LOAD-WAREHOUSE THROUGH LOAD-CARGO
-           IF WS-CA-ID-Invalid
-               OR NOT Stored OF Cargo
+           IF WS-CA-ID-Invalid OR NOT Stored OF Cargo
                OR CA-Warehouse IS NOT EQUAL WS-WA-Name
                *> We don't allow to load cargo which is already at its final destination
                OR CA-Warehouse IS EQUAL Dest OF Cargo
@@ -284,7 +281,8 @@
                EXIT PERFORM CYCLE
            END-IF
            SET Loaded OF Cargo TO TRUE
-           MOVE WS-VE-Number TO CA-Vehichle
+           ADD WS-VE-Number TO CA-Vehichle
+           MOVE SPACES TO CA-Warehouse
            PERFORM UPDATE-CARGO
            DISPLAY "/>> Cargo loaded to the vehichle" END-DISPLAY
 
@@ -295,29 +293,25 @@
            END-IF
            PERFORM ASK-CARGO-ID
            PERFORM LOAD-WAREHOUSE THROUGH LOAD-CARGO
-           IF WS-CA-ID-Invalid
-               OR NOT Loaded OF Cargo
-               OR CA-Vehichle IS NOT EQUAL WS-VE-Number
-               *> Don't allow to unload cargo at other warehouses than necessary
-               OR WS-WA-Name IS NOT EQUAL Dest OF Cargo
-               OR Location OF Warehouse
-                   IS NOT EQUAL Location OF Vehichle
+           IF Location OF Warehouse IS NOT EQUAL Location OF Vehichle OR CA-Vehichle IS NOT EQUAL WS-VE-Number OR
+               *> Don't allow to unload cargo back at the origin warehouse (to disallow spam of load/unload oprations)
+               WS-WA-Name IS EQUAL Origin OF Cargo OR
+               WS-CA-ID-Invalid OR NOT Loaded OF Cargo
                DISPLAY "!>> Invalid operation" END-DISPLAY
                EXIT PERFORM CYCLE
            END-IF
-           SET Stored OF Cargo TO TRUE
-           MOVE WS-WA-Name TO CA-Warehouse
-           PERFORM UPDATE-CARGO
            STRING
-               "Vehichle #"
-               FUNCTION TRIM(WS-VE-Number)
-               " delived cargo "
-               FUNCTION TRIM(CA-ID)
-               ": "
-               FUNCTION TRIM(Note OF Cargo)
+               "Vehichle #" FUNCTION TRIM(WS-VE-Number)
+               " delived cargo " FUNCTION TRIM(CA-ID)
+               " from " FUNCTION TRIM(Origin OF Cargo)
+               ": " FUNCTION TRIM(Note OF Cargo)
                INTO Log-Entry
            END-STRING
            PERFORM ADD-LOG-ENTRY
+           SET Stored OF Cargo TO TRUE
+           SUBTRACT WS-VE-Number FROM CA-Vehichle
+           MOVE WS-WA-Name TO CA-Warehouse
+           PERFORM UPDATE-CARGO
            DISPLAY "/>> Cargo unloaded from vehichle" END-DISPLAY
 
            WHEN Command-Exit EXIT PERFORM
@@ -394,9 +388,15 @@
       * This procedure takes data from file section.
       * Procedure assumes existence of previous record.
        UPDATE-CARGO.
-           OPEN I-O Cargoes
-           REWRITE Cargo
-           CLOSE Cargoes.
+           IF CA-Vehichle IS NOT EQUAL ZEROS
+               AND CA-Warehouse IS NOT EQUAL SPACES
+               *> Data inconsitency
+               CONTINUE
+           ELSE
+               OPEN I-O Cargoes
+               REWRITE Cargo
+               CLOSE Cargoes
+           END-IF.
 
       * Procedures for warehouse log handling.
        SET-LOG-PATH.
@@ -406,9 +406,7 @@
            MOVE FUNCTION LENGTH(FUNCTION TRIM(WS-WA-Name))
                TO Log-Path-Length
            STRING
-               "logs/"
-               FUNCTION TRIM(WS-WA-Name)
-               ".log"
+               "logs/" FUNCTION TRIM(WS-WA-Name) ".log"
                INTO Log-Path
            END-STRING.
        ADD-LOG-ENTRY.
@@ -444,10 +442,11 @@
        COMPUTE-GATEWAY-KEY.
            PERFORM LOAD-VEHICHLE.
            PERFORM VARYING Gateway-Key-Index FROM 1 BY 1
-               UNTIL Gateway-Key-Index > FUNCTION LENGTH(VE-Password)
+               UNTIL Gateway-Key-Index > 50
                COMPUTE Gateway-Key-Temp =
                    26 * FUNCTION ORD(VE-Password(Gateway-Key-Index:1))
-                   + Gateway-Key-Index * VE-Number + Gateway-Key-Index
+                   + Gateway-Key-Index * VE-Number
+                   + VE-Number / Gateway-Key-Index
                MOVE FUNCTION CHAR(
                    66 + FUNCTION MOD(Gateway-Key-Temp, 26)
                ) TO Gateway-Key(Gateway-Key-Index:1)
