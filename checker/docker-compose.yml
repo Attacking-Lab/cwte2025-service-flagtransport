@@ -1,3 +1,4 @@
+name: flagtransport-checker
 services:
   checker:
     container_name: flagtransport-checker
