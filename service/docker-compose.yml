@@ -7,6 +7,7 @@ services:
     volumes:
       - data:/opt/data
       - logs:/opt/logs
+    restart: unless-stopped
   gateway:
     build:
       dockerfile: Dockerfile.gateway
@@ -15,6 +16,7 @@ services:
     volumes:
       - data:/opt/data
       - logs:/opt/logs
+    restart: unless-stopped
 networks:
   default:
     name: flagtransport
