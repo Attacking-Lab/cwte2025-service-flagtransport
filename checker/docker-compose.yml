@@ -1,3 +1,4 @@
+name: flagtransport-checker
 services:
   checker:
     container_name: flagtransport-checker
@@ -9,6 +10,7 @@ services:
       - MONGO_HOST=mongo
       - MONGO_USER=mongo
       - MONGO_PASSWORD=mongo
+    restart: unless-stopped
   mongo:
     container_name: flagtransport-mongo
     image: mongo
@@ -17,6 +19,7 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: mongo
       MONGO_INITDB_ROOT_PASSWORD: mongo
+    restart: unless-stopped
 networks:
   default:
     name: flagtransport-checker
