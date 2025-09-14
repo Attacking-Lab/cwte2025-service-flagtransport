@@ -89,8 +89,7 @@ def fail_context(context: str):
         yield
     except MumbleException as e:
         assert e.message
-        e.message = f"{context}: {e.message}"
-        raise
+        raise MumbleException(f"{context}: {e.message}", e.log_message)
 
 
 def set_fail_context(context: str) -> Callable[[Callable[P, T]], Callable[P, T]]:
