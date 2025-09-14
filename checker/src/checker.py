@@ -591,42 +591,9 @@ class ControllerClient(BaseConnectionClient):
 
 
 class GatewayClient(BaseConnectionClient):
-    class StreamReaderProtocolUDP(asyncio.streams.StreamReaderProtocol):
-        # This is copy-pasted `asyncio.streams.StreamReaderProtocol.data_received()`
-        def datagram_received(self, data, addr):
-            reader = self._stream_reader  # type: ignore
-            if reader is not None:
-                reader.feed_data(data)
-
-    async def _open_conn(self):
-        self.log.debug("Openning new UDP connection to '%s:%s'", self.host, self.port)
-        # This is basically copy-paste from `asyncio.streams.open_connection()`
-        loop = asyncio.get_running_loop()
-        self._reader = asyncio.streams.StreamReader(limit=2**16, loop=loop)
-        self._protocol = GatewayClient.StreamReaderProtocolUDP(self._reader, loop=loop)
-        self._transport, _ = await loop.create_datagram_endpoint(
-            lambda: self._protocol, remote_addr=(self.host, self.port)
-        )
-        self.needs_new_connection: bool = False
-
-    async def close(self):
-        try:
-            await self._protocol._drain_helper()  # type: ignore
-        except:
-            pass
-        try:
-            self._transport.close()
-        except:
-            pass
-
-    async def send_line(self, data: str | bytes):
-        if isinstance(data, str):
-            data = data.encode()
-        data += b"\n"
-        self.log.debug("Sending %s bytes: %r", len(data), data)
-        # Note that this actually doesn't send the data but just put them
-        # into "to be sent" buffer. See `.drain()` for more details.
-        self._transport.sendto(data)
+    def __init__(self, host: str, log: LoggerAdapter, port: int = 6257):
+        super().__init__(host, log, port)
+        self.needs_new_connection: bool = True
 
     @set_fail_context("Gateway location update")
     async def location_update(
@@ -636,37 +603,23 @@ class GatewayClient(BaseConnectionClient):
         location: Point,
         *,
         keep_connection_after: bool = False,
-        timeout: float = GATEWAY_RETRY_TIMEOUT,
-        retries: int = GATEWAY_RETRIES,
     ):
-        async def func():
-            self.log.info(
-                "Updating location for vehichle %s to %s...", vehichle_number, location
-            )
-            if self.needs_new_connection:
-                await self.reconnect()
+        self.log.info(
+            "Updating location for vehichle %s to %s...", vehichle_number, location
+        )
+        if self.needs_new_connection:
+            await self.reconnect()
 
-            request = f"{vehichle_number}:{gateway_key}:L:{location.x}:{location.y}"
-            await self.send_line(request)
-            await self.recv_line(":OK:")
-            await self.recv_line(":END:")
+        request = f"{vehichle_number}:{gateway_key}:L:{location.x}:{location.y}"
+        await self.send_line(request)
+        await self.recv_line(":OK:")
+        await self.recv_line(":END:")
 
-            self.log.info("Location updated")
+        self.log.info("Location updated")
 
-            if not keep_connection_after:
-                await self.close()
-                self.needs_new_connection = True
-
-        for x in range(retries):
-            try:
-                return await asyncio.wait_for(func(), timeout)
-            except asyncio.TimeoutError:
-                self.log.warning("Request timeouted %r/%r", x, retries)
-                if x == retries - 1:
-                    raise
-                await self.reconnect()
-
-        assert False
+        if not keep_connection_after:
+            await self.close()
+            self.needs_new_connection = True
 
     @set_fail_context("Gateway status check")
     async def get_status(
@@ -675,8 +628,6 @@ class GatewayClient(BaseConnectionClient):
         gateway_key: str,
         *,
         keep_connection_after: bool = False,
-        timeout: float = GATEWAY_RETRY_TIMEOUT,
-        retries: int = GATEWAY_RETRIES,
     ) -> tuple[Point, list[Cargo]]:
         self.log.info("Getting status of vehichle %s...", vehichle_number)
         if self.needs_new_connection:
@@ -684,54 +635,42 @@ class GatewayClient(BaseConnectionClient):
 
         request = f"{vehichle_number}:{gateway_key}:S"
 
-        async def func():
-            await self.send_line(request)
+        await self.send_line(request)
 
+        resp = await self.recv_line()
+        if not resp.startswith(":LOC:") or not resp.endswith(":"):
+            fail_unexpected(resp)
+
+        resp = resp.removeprefix(":LOC:").removesuffix(":")
+        try:
+            location = Point(*map(int, resp.split(":")))
+        except:
+            fail_unexpected(resp)
+
+        self.log.info("Vehichle is at %s", location)
+
+        cargo_list: list[Cargo] = []
+        while True:
             resp = await self.recv_line()
-            if not resp.startswith(":LOC:") or not resp.endswith(":"):
+            if resp == ":OK:":
+                break
+            if not resp.startswith(":CAR:") or not resp.endswith(":"):
                 fail_unexpected(resp)
-
-            resp = resp.removeprefix(":LOC:").removesuffix(":")
-            try:
-                location = Point(*map(int, resp.split(":")))
-            except:
+            resp = resp.removeprefix(":CAR:").removesuffix(":")
+            splited = tuple(resp.split(":"))
+            if len(splited) != 3:
                 fail_unexpected(resp)
+            cargo_list.append(Cargo(*splited))
 
-            self.log.info("Vehichle is at %s", location)
+        self.log.info("Vehichle has %s cargo items", len(cargo_list))
 
-            cargo_list: list[Cargo] = []
-            while True:
-                resp = await self.recv_line()
-                if resp == ":OK:":
-                    break
-                if not resp.startswith(":CAR:") or not resp.endswith(":"):
-                    fail_unexpected(resp)
-                resp = resp.removeprefix(":CAR:").removesuffix(":")
-                splited = tuple(resp.split(":"))
-                if len(splited) != 3:
-                    fail_unexpected(resp)
-                cargo_list.append(Cargo(*splited))
+        await self.recv_line(":END:")
 
-            self.log.info("Vehichle has %s cargo items", len(cargo_list))
+        if not keep_connection_after:
+            await self.close()
+            self.needs_new_connection = True
 
-            await self.recv_line(":END:")
-
-            if not keep_connection_after:
-                await self.close()
-                self.needs_new_connection = True
-
-            return (location, cargo_list)
-
-        for x in range(retries):
-            try:
-                return await asyncio.wait_for(func(), timeout)
-            except asyncio.TimeoutError:
-                self.log.warning("Request timeouted %r/%r", x, retries)
-                if x == retries - 1:
-                    raise
-                await self.reconnect()
-
-        assert False
+        return (location, cargo_list)
 
 
 @checker.register_dependency

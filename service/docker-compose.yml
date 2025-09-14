@@ -11,7 +11,7 @@ services:
     build:
       dockerfile: Dockerfile.gateway
     ports:
-      - 6256:6256/udp
+      - 6257:6257
     volumes:
       - data:/opt/data
       - logs:/opt/logs
