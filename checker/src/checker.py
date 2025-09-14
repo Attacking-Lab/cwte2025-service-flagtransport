@@ -33,6 +33,7 @@ from enochecker3.types import (
     ExploitCheckerTaskMessage,
     GetflagCheckerTaskMessage,
     MumbleException,
+    OfflineException,
     PutflagCheckerTaskMessage,
     PutnoiseCheckerTaskMessage,
 )
@@ -242,9 +243,16 @@ class BaseConnectionClient:
 
     async def _open_conn(self):
         self.log.debug("Openning new TCP connection to '%s:%s'", self.host, self.port)
-        self._reader, self._writer = await asyncio.streams.open_connection(
-            self.host, self.port
-        )
+        try:
+            self._reader, self._writer = await asyncio.streams.open_connection(
+                self.host, self.port
+            )
+        except:
+            import traceback
+
+            trace = traceback.format_exc()
+            self.log.info(f"Failed to connect to service\n{trace}")
+            raise OfflineException("Could not establish socket connection to service")
 
     async def close(self):
         # We just ignore all exceptions about already closed / invalid stream
