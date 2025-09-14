@@ -24,7 +24,17 @@ import string
 from dataclasses import astuple, dataclass, fields, is_dataclass
 from logging import LoggerAdapter
 from types import CoroutineType
-from typing import Any, Callable, NoReturn, ParamSpec, Self, TypeVar, cast, overload
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    NoReturn,
+    ParamSpec,
+    Self,
+    TypeVar,
+    cast,
+    overload,
+)
 
 from enochecker3.chaindb import ChainDB
 from enochecker3.enochecker import Enochecker
@@ -92,11 +102,13 @@ def fail_context(context: str):
         raise MumbleException(f"{context}: {e.message}", e.log_message)
 
 
-def set_fail_context(context: str) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    def wrapper(f: Callable[P, T]) -> Callable[P, T]:
-        def wrapped(*args: P.args, **kwargs: P.kwargs) -> T:
+def set_fail_context(
+    context: str,
+) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
+    def wrapper(f: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+        async def wrapped(*args: P.args, **kwargs: P.kwargs) -> T:
             with fail_context(context):
-                return f(*args, **kwargs)
+                return await f(*args, **kwargs)
 
         return wrapped
 
