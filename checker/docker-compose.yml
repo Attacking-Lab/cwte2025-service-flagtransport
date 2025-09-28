@@ -1,8 +1,12 @@
 name: flagtransport-checker
+
 services:
   checker:
     container_name: flagtransport-checker
-    build: .
+    build:
+      context: .
+      secrets:
+        - github-pat
     ports:
       - 1337:1337
     environment:
@@ -11,6 +15,7 @@ services:
       - MONGO_USER=mongo
       - MONGO_PASSWORD=mongo
     restart: unless-stopped
+
   mongo:
     container_name: flagtransport-mongo
     image: mongo
@@ -20,9 +25,15 @@ services:
       MONGO_INITDB_ROOT_USERNAME: mongo
       MONGO_INITDB_ROOT_PASSWORD: mongo
     restart: unless-stopped
+
 networks:
   default:
     name: flagtransport-checker
+
 volumes:
   data:
     name: flagtransport-chaindb
+
+secrets:
+  github-pat:
+    environment: GITHUB_PAT

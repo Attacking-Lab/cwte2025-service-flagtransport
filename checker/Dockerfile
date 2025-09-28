@@ -12,16 +12,18 @@ RUN \
 WORKDIR /tmp
 
 RUN useradd -ms /bin/bash checker
-RUN python3 -m pip install --break-system-packages uv
+RUN python3 -m pip install --break-system-packages uv git-pass-helper==0.2.1
 
 WORKDIR /checker
 RUN chown checker -R /checker
 USER checker
-RUN git config --global credential.https://github.com.helper "store --file /tmp/.git-credentials"
-RUN echo "https://token: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@github.com" > /tmp/.git-credentials
 
 COPY ./src/pyproject.toml ./src/uv.lock /checker/
-RUN uv sync --exact --frozen
-COPY ./src/checker.py ./src/gunicorn.conf.py /checker/
+
+RUN --mount=type=secret,id=github-pat,env=GITHUB_PAT \
+  git-pass -p "${GITHUB_PAT:?GITHUB PAT not set}" -- \
+    uv sync --exact --frozen
+
+COPY ./src/*.py /checker/
 
 ENTRYPOINT [ "uv", "run", "--no-sync", "gunicorn", "-c", "gunicorn.conf.py", "checker:app" ]

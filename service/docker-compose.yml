@@ -1,3 +1,5 @@
+name: flagtransport
+
 services:
   controller:
     build:
@@ -8,6 +10,7 @@ services:
       - data:/opt/data
       - logs:/opt/logs
     restart: unless-stopped
+
   gateway:
     build:
       dockerfile: Dockerfile.gateway
@@ -17,9 +20,11 @@ services:
       - data:/opt/data
       - logs:/opt/logs
     restart: unless-stopped
+
 networks:
   default:
     name: flagtransport
+
 volumes:
   data:
   logs:
