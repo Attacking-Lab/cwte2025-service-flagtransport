@@ -1,8 +1,6 @@
 Flag Transport
 ================
 
-    <!-- The service name shouldn't be longer than 20 chars -->
-
 Authors:
 * Hackrrr
 
@@ -134,30 +132,3 @@ What makes this patch bit tricky is that it needs to be applied twice - once for
 ### Flag Store 2, Vuln 3
 Restructure code text so there is no code after column 73 (e.g. just put conditions on separate lines).
 
-
-Work Packages
--------------
-
-    <!--
-    Brief description of each work package
-    -->
-
-### WP 1: Name
-
-#### WP 1.1: Subtask
-
-    <!--
-    Short Description
-    -->
-
-#### WP 1.N: Subtask
-
-...
-
-### WP N: Name
-
-    <!--
-    Short Description
-    -->
-
-...
